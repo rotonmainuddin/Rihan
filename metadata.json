@@ -1,0 +1,6 @@
+{
+  "name": "Rihan Intelligence Book",
+  "description": "Interactive 3D preschool learning book for Rihan with Bangla, English, Math, Arabic, Magic Drawing Board, and Balloon Pop Quiz.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

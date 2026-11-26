@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Fredoka', 'Hind Siliguri', ui-rounded, 'Hiragino Maru Gothic ProN', Quicksand, Comfortaa, Manjari, 'Arial Rounded MT', Calibri, source-sans-pro, sans-serif;
+    background: radial-gradient(circle at top left, #FFF7E0 0%, #FFFDF7 45%, #EFF8FF 100%);
+    color: #1E293B;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+}
+
+.font-bangla {
+  font-family: 'Hind Siliguri', 'Fredoka', sans-serif;
+}
+
+.font-arabic {
+  font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+}
+
+.font-cartoon {
+  font-family: 'Fredoka', 'Hind Siliguri', sans-serif;
+}
+
+/* 3D Intelligence Book Tactile Styles */
+.book-spread-3d {
+  box-shadow:
+    0 20px 45px -15px rgba(15, 23, 42, 0.14),
+    0 8px 0 0 #E2D9C5,
+    0 14px 0 0 #CFC4AC,
+    inset 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+
+.card-3d {
+  box-shadow:
+    0 10px 24px -8px rgba(15, 23, 42, 0.12),
+    0 5px 0 0 rgba(148, 163, 184, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tile-3d {
+  box-shadow:
+    0 6px 0 0 rgba(15, 23, 42, 0.12),
+    0 10px 18px -6px rgba(15, 23, 42, 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tile-3d:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 9px 0 0 rgba(15, 23, 42, 0.13),
+    0 14px 22px -6px rgba(15, 23, 42, 0.14),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95);
+}
+
+.tile-3d:active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow:
+    0 2px 0 0 rgba(15, 23, 42, 0.14),
+    inset 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+.clay-badge-3d {
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.16),
+    inset 0 3px 6px rgba(255, 255, 255, 0.65),
+    inset 0 -3px 6px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes floatBalloon {
+  0% { transform: translateY(0px) rotate(-2deg); }
+  50% { transform: translateY(-16px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(-2deg); }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  70% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+
+@keyframes waveHand {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(16deg); }
+  50% { transform: rotate(-6deg); }
+  75% { transform: rotate(14deg); }
+}
+
+@keyframes blinkEyes {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+@keyframes talkMouth {
+  0%, 100% { transform: scaleY(0.6); }
+  50% { transform: scaleY(1.25); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3.2s ease-in-out infinite;
+}
+
+.animate-balloon {
+  animation: floatBalloon 3.6s ease-in-out infinite;
+}
+
+.animate-pop-in {
+  animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.4s ease-in-out;
+}
+
+.animate-wave-hand {
+  transform-origin: 18px 82px;
+  animation: waveHand 2.4s ease-in-out infinite;
+}
+
+.animate-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: blinkEyes 4.2s ease-in-out infinite;
+}
+
+.animate-talk {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: talkMouth 0.28s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-balloon,
+  .animate-wave-hand,
+  .animate-blink,
+  .animate-talk {
+    animation: none;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
