@@ -353,7 +353,7 @@ export default function App() {
 
             <div className="lg:col-span-5 min-h-[190px] sm:min-h-[220px] relative overflow-hidden">
               <img
-                src="/src/assets/images/hero_3d_intelligence_book_1795732382110.jpg"
+                src="./src/assets/images/hero_3d_intelligence_book_1795732382110.jpg"
                 alt="Rihan 3D Pop-up Intelligence Book"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover lg:h-full"

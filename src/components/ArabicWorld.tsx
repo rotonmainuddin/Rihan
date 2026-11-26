@@ -48,7 +48,7 @@ export const ArabicWorld: React.FC<ArabicWorldProps> = ({ onEarnStar, onSpeaking
           <div className="flex items-center gap-4">
             <div className="w-24 h-20 sm:w-32 sm:h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md shrink-0 bg-teal-900">
               <img
-                src="/src/assets/images/arabic_3d_storybook_1795732383561.jpg"
+                src="./src/assets/images/arabic_3d_storybook_1795732383561.jpg"
                 alt="3D Crescent Moon and Lantern Storybook"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

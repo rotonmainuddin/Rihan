@@ -111,7 +111,7 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
           <div className="flex items-center gap-4">
             <div className="w-24 h-20 sm:w-32 sm:h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md shrink-0 bg-sky-100">
               <img
-                src="/src/assets/images/english_3d_storybook_1795732382678.jpg"
+                src="./src/assets/images/english_3d_storybook_1795732382678.jpg"
                 alt="3D English Nursery Blocks"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

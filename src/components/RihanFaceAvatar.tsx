@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const RIHAN_PHOTO_SRC = '/assets/aistudio/WhatsApp_Image_2026-02-02_at_11.39.10_PM_e38332e3.jpeg';
+const RIHAN_PHOTO_SRC = './assets/aistudio/WhatsApp_Image_2026-02-02_at_11.39.10_PM_e38332e3.jpeg';
 
 let cachedCroppedFaceUrl: string | null = null;
 let cropPromise: Promise<string> | null = null;

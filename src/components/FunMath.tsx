@@ -245,7 +245,7 @@ export const FunMath: React.FC<FunMathProps> = ({ onEarnStar, onSpeakingChange }
           <div className="flex items-center gap-4">
             <div className="w-24 h-20 sm:w-32 sm:h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md shrink-0 bg-emerald-100">
               <img
-                src="/src/assets/images/math_3d_storybook_1795732383559.jpg"
+                src="./src/assets/images/math_3d_storybook_1795732383559.jpg"
                 alt="3D Monkey and Geometric Shapes"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

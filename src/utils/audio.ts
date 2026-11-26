@@ -211,19 +211,26 @@ export function playLullabyNote() {
   });
 }
 
+let serverTtsAvailable =
+  typeof window !== 'undefined' && !window.location.hostname.endsWith('github.io');
+
 function buildTtsUrl(text: string, lang: 'bn-BD' | 'en-US' | 'ar-SA'): string {
-  return `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
+  return `./api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
 }
 
 export function prefetchSpeech(text: string, lang: 'bn-BD' | 'en-US' | 'ar-SA' = 'bn-BD') {
   const cleanText = text.trim();
-  if (typeof window === 'undefined' || !cleanText) return;
+  if (typeof window === 'undefined' || !cleanText || !serverTtsAvailable) return;
 
   const cacheKey = `${lang}::${cleanText}`;
   if (clientBlobUrlCache.has(cacheKey) || inFlightPrefetches.has(cacheKey)) return;
 
   const p = fetch(buildTtsUrl(cleanText, lang))
     .then(async (res) => {
+      if (res.status === 404) {
+        serverTtsAvailable = false;
+        return null;
+      }
       if (!res.ok) return null;
       const blob = await res.blob();
       if (!blob || blob.size < 100) return null;
@@ -399,7 +406,7 @@ export function speakText(text: string, options: SpeakOptions = {}) {
   }
 
   const audio = getSharedVoiceAudio();
-  if (!audio) {
+  if (!audio || !serverTtsAvailable) {
     speakWithWebSpeechFallback(cleanText, lang, genId, onStart, onEnd);
     return;
   }

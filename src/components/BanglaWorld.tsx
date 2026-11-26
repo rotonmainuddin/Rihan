@@ -115,7 +115,7 @@ export const BanglaWorld: React.FC<BanglaWorldProps> = ({ onEarnStar, onSpeaking
           <div className="flex items-center gap-4">
             <div className="w-24 h-20 sm:w-32 sm:h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md shrink-0 bg-emerald-100">
               <img
-                src="/src/assets/images/bangla_3d_storybook_1795732382992.jpg"
+                src="./src/assets/images/bangla_3d_storybook_1795732382992.jpg"
                 alt="3D Bangla Storybook Garden"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
