@@ -469,7 +469,11 @@ export const FunMath: React.FC<FunMathProps> = ({ onEarnStar, onSpeakingChange }
                 onClick={() =>
                   speakText(
                     `${toBanglaNum(question.a)} ${question.op === '+' ? 'যোগ' : 'বিয়োগ'} ${toBanglaNum(question.b)} সমান কত?`,
-                    { lang: 'bn-BD' }
+                    {
+                      lang: 'bn-BD',
+                      onStart: () => onSpeakingChange(true),
+                      onEnd: () => onSpeakingChange(false),
+                    }
                   )
                 }
                 aria-label="প্রশ্ন শুনো"

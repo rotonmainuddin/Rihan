@@ -23,10 +23,15 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
 
   const [activeRhymeId, setActiveRhymeId] = useState<string | null>(null);
   const [activeLineIdx, setActiveLineIdx] = useState<number>(-1);
-  const rhymeCancelledRef = useRef<boolean>(false);
+  const rhymeSessionRef = useRef<number>(0);
+  const rhymeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopRhyme = () => {
-    rhymeCancelledRef.current = true;
+    rhymeSessionRef.current += 1;
+    if (rhymeTimerRef.current) {
+      clearTimeout(rhymeTimerRef.current);
+      rhymeTimerRef.current = null;
+    }
     stopSpeech();
     setActiveRhymeId(null);
     setActiveLineIdx(-1);
@@ -35,7 +40,11 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
 
   useEffect(() => {
     return () => {
-      rhymeCancelledRef.current = true;
+      rhymeSessionRef.current += 1;
+      if (rhymeTimerRef.current) {
+        clearTimeout(rhymeTimerRef.current);
+        rhymeTimerRef.current = null;
+      }
       stopSpeech();
       onSpeakingChange(false);
     };
@@ -72,13 +81,13 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
 
     stopRhyme();
     playChimeSound();
-    rhymeCancelledRef.current = false;
+    const sessionId = rhymeSessionRef.current;
     setActiveRhymeId(rhyme.id);
 
     rhyme.lines.forEach((line) => prefetchSpeech(line, 'en-US'));
 
     const readLine = (idx: number) => {
-      if (rhymeCancelledRef.current) return;
+      if (rhymeSessionRef.current !== sessionId) return;
       if (idx >= rhyme.lines.length) {
         setActiveRhymeId(null);
         setActiveLineIdx(-1);
@@ -91,10 +100,12 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
       setActiveLineIdx(idx);
       speakText(rhyme.lines[idx], {
         lang: 'en-US',
-        onStart: () => onSpeakingChange(true),
+        onStart: () => {
+          if (rhymeSessionRef.current === sessionId) onSpeakingChange(true);
+        },
         onEnd: () => {
-          if (!rhymeCancelledRef.current) {
-            setTimeout(() => readLine(idx + 1), 220);
+          if (rhymeSessionRef.current === sessionId) {
+            rhymeTimerRef.current = setTimeout(() => readLine(idx + 1), 220);
           }
         },
       });
@@ -147,6 +158,7 @@ export const EnglishWorld: React.FC<EnglishWorldProps> = ({ onEarnStar, onSpeaki
             <button
               type="button"
               onClick={() => {
+                stopRhyme();
                 playTapSound();
                 setSection('rhymes');
               }}

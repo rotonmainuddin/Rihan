@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RotateCcw, Volume2 } from 'lucide-react';
-import { playChimeSound, playOopsSound, playPopSound, playTapSound, speakText } from '../utils/audio';
+import { playChimeSound, playOopsSound, playPopSound, playTapSound, speakText, stopSpeech } from '../utils/audio';
 
 interface BalloonGameProps {
   onEarnStar: (amount: number, mascotMsg: string, celebrate?: boolean) => void;
@@ -46,20 +46,46 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
   const [balloons, setBalloons] = useState<BalloonItem[]>([]);
   const [scoreRound, setScoreRound] = useState<number>(0);
 
+  const chimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nextRoundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  const clearPendingTimers = useCallback(() => {
+    if (chimeTimerRef.current) {
+      clearTimeout(chimeTimerRef.current);
+      chimeTimerRef.current = null;
+    }
+    if (nextRoundTimerRef.current) {
+      clearTimeout(nextRoundTimerRef.current);
+      nextRoundTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearPendingTimers();
+      stopSpeech();
+      onSpeakingChange(false);
+    };
+  }, [clearPendingTimers, onSpeakingChange]);
+
   const announceTarget = useCallback(
     (char: string) => {
+      if (!mountedRef.current) return;
       const isEnglish = /^[A-Z0-9]+$/.test(char);
       if (isEnglish) {
         speakText(`Rihan, find ${char}`, {
           lang: 'en-US',
-          onStart: () => onSpeakingChange(true),
-          onEnd: () => onSpeakingChange(false),
+          onStart: () => mountedRef.current && onSpeakingChange(true),
+          onEnd: () => mountedRef.current && onSpeakingChange(false),
         });
       } else {
         speakText(`রিহান, ${char} বেলুনটি ফাটাও`, {
           lang: 'bn-BD',
-          onStart: () => onSpeakingChange(true),
-          onEnd: () => onSpeakingChange(false),
+          onStart: () => mountedRef.current && onSpeakingChange(true),
+          onEnd: () => mountedRef.current && onSpeakingChange(false),
         });
       }
     },
@@ -68,6 +94,7 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
 
   const startNewRound = useCallback(
     (cat: QuizCategory, shouldSpeak = true) => {
+      clearPendingTimers();
       const pool = getPool(cat);
       const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 6);
       const chosenTarget = shuffled[Math.floor(Math.random() * shuffled.length)];
@@ -89,7 +116,7 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
         announceTarget(chosenTarget);
       }
     },
-    [announceTarget]
+    [announceTarget, clearPendingTimers]
   );
 
   useEffect(() => {
@@ -100,8 +127,11 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
     if (balloon.popped) return;
 
     if (balloon.label === target) {
+      clearPendingTimers();
       playPopSound();
-      setTimeout(() => playChimeSound(), 90);
+      chimeTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) playChimeSound();
+      }, 90);
 
       setBalloons((prev) =>
         prev.map((b) => (b.id === balloon.id ? { ...b, popped: true } : b))
@@ -110,8 +140,8 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
 
       onEarnStar(5, `দারুণ রিহান! "${target}" বেলুনটি ফাটিয়েছো! +৫ তারা!`, true);
 
-      setTimeout(() => {
-        startNewRound(category, true);
+      nextRoundTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) startNewRound(category, true);
       }, 950);
     } else {
       playOopsSound();
@@ -120,9 +150,11 @@ export const BalloonGame: React.FC<BalloonGameProps> = ({ onEarnStar, onSpeaking
       );
       onEarnStar(0, `ওটা "${balloon.label}"! আমরা "${target}" খুঁজছি রিহান!`);
       setTimeout(() => {
-        setBalloons((prev) =>
-          prev.map((b) => (b.id === balloon.id ? { ...b, wobble: false } : b))
-        );
+        if (mountedRef.current) {
+          setBalloons((prev) =>
+            prev.map((b) => (b.id === balloon.id ? { ...b, wobble: false } : b))
+          );
+        }
       }, 450);
     }
   };

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BookOpen, HeartHandshake, Volume2 } from 'lucide-react';
 import { ARABIC_LETTERS, ISLAMIC_DUAS } from '../data/learningData';
 import { ArabicLetter, DuaItem } from '../types';
-import { playChimeSound, playPopSound, playTapSound, prefetchSpeech, speakText } from '../utils/audio';
+import { playChimeSound, playPopSound, playTapSound, prefetchSpeech, speakText, stopSpeech } from '../utils/audio';
 
 interface ArabicWorldProps {
   onEarnStar: (amount: number, mascotMsg: string, celebrate?: boolean) => void;
@@ -12,8 +12,18 @@ interface ArabicWorldProps {
 export const ArabicWorld: React.FC<ArabicWorldProps> = ({ onEarnStar, onSpeakingChange }) => {
   const [section, setSection] = useState<'hijaiyah' | 'duas'>('hijaiyah');
   const [selectedLetter, setSelectedLetter] = useState<ArabicLetter>(ARABIC_LETTERS[0]);
+  const duaSessionRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      duaSessionRef.current += 1;
+      stopSpeech();
+      onSpeakingChange(false);
+    };
+  }, [onSpeakingChange]);
 
   const handleArabicClick = (item: ArabicLetter) => {
+    duaSessionRef.current += 1;
     playPopSound();
     setSelectedLetter(item);
     speakText(item.speech, {
@@ -25,15 +35,22 @@ export const ArabicWorld: React.FC<ArabicWorldProps> = ({ onEarnStar, onSpeaking
   };
 
   const handleDuaClick = (dua: DuaItem) => {
+    duaSessionRef.current += 1;
+    const sessionId = duaSessionRef.current;
     playChimeSound();
     prefetchSpeech(dua.meaningBn, 'bn-BD');
     speakText(dua.arabic, {
       lang: 'ar-SA',
-      onStart: () => onSpeakingChange(true),
+      onStart: () => {
+        if (duaSessionRef.current === sessionId) onSpeakingChange(true);
+      },
       onEnd: () => {
+        if (duaSessionRef.current !== sessionId) return;
         speakText(dua.meaningBn, {
           lang: 'bn-BD',
-          onEnd: () => onSpeakingChange(false),
+          onEnd: () => {
+            if (duaSessionRef.current === sessionId) onSpeakingChange(false);
+          },
         });
       },
     });

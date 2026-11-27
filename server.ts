@@ -49,20 +49,59 @@ function mapLangToGoogleTts(lang: string): string {
   return 'bn';
 }
 
+function splitTtsChunks(text: string, maxLen = 160): string[] {
+  if (text.length <= maxLen) return [text];
+  const parts = text.split(/(?<=[।.,!?;:])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const part of parts) {
+    if ((current + ' ' + part).trim().length <= maxLen) {
+      current = (current + ' ' + part).trim();
+    } else {
+      if (current) chunks.push(current);
+      if (part.length <= maxLen) {
+        current = part;
+      } else {
+        const words = part.split(/\s+/);
+        let line = '';
+        for (const w of words) {
+          if ((line + ' ' + w).trim().length <= maxLen) {
+            line = (line + ' ' + w).trim();
+          } else {
+            if (line) chunks.push(line);
+            line = w.slice(0, maxLen);
+          }
+        }
+        current = line;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [text.slice(0, maxLen)];
+}
+
 async function fetchGoogleTranslateTts(text: string, lang: string): Promise<CachedAudio | null> {
   const tl = mapLangToGoogleTts(lang);
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(tl)}&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      Referer: 'https://translate.google.com/',
-    },
-  });
-  if (!res.ok) return null;
-  const ab = await res.arrayBuffer();
-  if (!ab || ab.byteLength < 100) return null;
+  const chunks = splitTtsChunks(text, 160);
+  const buffers: Buffer[] = [];
+
+  for (const chunk of chunks) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(tl)}&q=${encodeURIComponent(chunk)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Referer: 'https://translate.google.com/',
+      },
+    });
+    if (!res.ok) return null;
+    const ab = await res.arrayBuffer();
+    if (!ab || ab.byteLength < 100) return null;
+    buffers.push(Buffer.from(ab));
+  }
+
   return {
-    buffer: Buffer.from(ab),
+    buffer: Buffer.concat(buffers),
     mimeType: 'audio/mpeg',
   };
 }
