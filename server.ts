@@ -196,8 +196,8 @@ async function startServer() {
 
       res.setHeader('Content-Type', audio.mimeType);
       res.setHeader('Content-Length', String(audio.buffer.length));
-      res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.send(audio.buffer);
     } catch (err) {
       console.error('GET /api/tts error:', err);

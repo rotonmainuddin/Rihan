@@ -1,12 +1,17 @@
-// Bulletproof Female Voice & Offline Sound Effects Engine
-// Works both with server.ts (/api/tts) AND statically on GitHub Pages (no-referrer TTS + Web Speech fallback).
+// Bulletproof Multi-Language Voice & Offline Sound Effects Engine
+// 1. Offline-ready static MP3 pack (./audio/*) for Bangla, English & Arabic
+// 2. Same-origin /api/tts endpoint (Node/Express server)
+// 3. No-referrer direct Google TTS HTMLAudioElement fallback
+// 4. Web Speech API fallback
+import { STATIC_AUDIO_MANIFEST } from '../data/audioManifest';
 
 let audioCtx: AudioContext | null = null;
 let isMutedGlobal = false;
 
-const clientBlobUrlCache = new Map<string, string>();
-const inFlightPrefetches = new Map<string, Promise<string | null>>();
+const decodedBufferCache = new Map<string, AudioBuffer>();
+const rawUrlBufferPromises = new Map<string, Promise<AudioBuffer | null>>();
 
+let activeBufferSource: AudioBufferSourceNode | null = null;
 let sharedVoiceAudio: HTMLAudioElement | null = null;
 let speechGeneration = 0;
 let cachedVoices: SpeechSynthesisVoice[] = [];
@@ -22,7 +27,7 @@ if (typeof window !== 'undefined') {
     window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
   }
 
-  // Keep AudioContext unlocked across user interactions so SFX never drop
+  // Unlock AudioContext on first user interaction so SFX & voice never drop
   const unlockOnGesture = () => {
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
@@ -267,40 +272,86 @@ function buildServerTtsUrl(text: string, lang: 'bn-BD' | 'en-US' | 'ar-SA'): str
   return `./api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
 }
 
+function resolveSameOriginAudioUrl(
+  cleanText: string,
+  lang: 'bn-BD' | 'en-US' | 'ar-SA'
+): string | null {
+  const cacheKey = `${lang}::${cleanText}`;
+  const staticUrl = STATIC_AUDIO_MANIFEST[cacheKey];
+  if (staticUrl) return staticUrl;
+  if (serverTtsAvailable) return buildServerTtsUrl(cleanText, lang);
+  return null;
+}
+
+// Use XMLHttpRequest instead of fetch() so browser extensions that patch window.fetch cannot break audio
+function loadDecodedAudioBuffer(url: string): Promise<AudioBuffer | null> {
+  const cached = decodedBufferCache.get(url);
+  if (cached) return Promise.resolve(cached);
+
+  const existing = rawUrlBufferPromises.get(url);
+  if (existing) return existing;
+
+  const ctx = getAudioContext();
+  if (!ctx || typeof XMLHttpRequest === 'undefined') {
+    return Promise.resolve(null);
+  }
+
+  const promise = new Promise<AudioBuffer | null>((resolve) => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.timeout = 8000;
+
+      xhr.onload = () => {
+        if (xhr.status === 404 && url.startsWith('./api/tts')) {
+          serverTtsAvailable = false;
+          resolve(null);
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && xhr.response instanceof ArrayBuffer) {
+          const ab = xhr.response;
+          if (ab.byteLength < 100) {
+            resolve(null);
+            return;
+          }
+          ctx
+            .decodeAudioData(ab.slice(0))
+            .then((decoded) => {
+              if (decodedBufferCache.size > 260) {
+                const firstKey = decodedBufferCache.keys().next().value;
+                if (firstKey) decodedBufferCache.delete(firstKey);
+              }
+              decodedBufferCache.set(url, decoded);
+              resolve(decoded);
+            })
+            .catch(() => resolve(null));
+        } else {
+          resolve(null);
+        }
+      };
+
+      xhr.onerror = () => resolve(null);
+      xhr.ontimeout = () => resolve(null);
+      xhr.send();
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    rawUrlBufferPromises.delete(url);
+  });
+
+  rawUrlBufferPromises.set(url, promise);
+  return promise;
+}
+
 export function prefetchSpeech(text: string, lang: 'bn-BD' | 'en-US' | 'ar-SA' = 'bn-BD') {
   const cleanText = text.trim();
-  if (typeof window === 'undefined' || !cleanText || !serverTtsAvailable) return;
-
-  const cacheKey = `${lang}::${cleanText}`;
-  if (clientBlobUrlCache.has(cacheKey) || inFlightPrefetches.has(cacheKey)) return;
-
-  const p = fetch(buildServerTtsUrl(cleanText, lang))
-    .then(async (res) => {
-      if (res.status === 404) {
-        serverTtsAvailable = false;
-        return null;
-      }
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      if (!blob || blob.size < 100) return null;
-      const objUrl = URL.createObjectURL(blob);
-      if (clientBlobUrlCache.size > 250) {
-        const firstKey = clientBlobUrlCache.keys().next().value;
-        if (firstKey) {
-          const old = clientBlobUrlCache.get(firstKey);
-          if (old) URL.revokeObjectURL(old);
-          clientBlobUrlCache.delete(firstKey);
-        }
-      }
-      clientBlobUrlCache.set(cacheKey, objUrl);
-      return objUrl;
-    })
-    .catch(() => null)
-    .finally(() => {
-      inFlightPrefetches.delete(cacheKey);
-    });
-
-  inFlightPrefetches.set(cacheKey, p);
+  if (typeof window === 'undefined' || !cleanText) return;
+  const url = resolveSameOriginAudioUrl(cleanText, lang);
+  if (url) {
+    loadDecodedAudioBuffer(url);
+  }
 }
 
 function pickBestFemaleVoice(lang: 'bn-BD' | 'en-US' | 'ar-SA'): SpeechSynthesisVoice | null {
@@ -432,6 +483,16 @@ function speakWithWebSpeechFallback(
 
 export function stopSpeech() {
   speechGeneration += 1;
+  if (activeBufferSource) {
+    try {
+      activeBufferSource.onended = null;
+      activeBufferSource.stop();
+      activeBufferSource.disconnect();
+    } catch {
+      // ignore already-stopped node
+    }
+    activeBufferSource = null;
+  }
   if (sharedVoiceAudio) {
     try {
       sharedVoiceAudio.onended = null;
@@ -458,22 +519,15 @@ export interface SpeakOptions {
   onEnd?: () => void;
 }
 
-export function speakText(text: string, options: SpeakOptions = {}) {
-  const { lang = 'bn-BD', onStart, onEnd } = options;
-  const cleanText = text.trim();
-
-  stopSpeech();
-  const genId = speechGeneration;
-
-  getAudioContext();
-
-  if (!cleanText || isMutedGlobal) {
-    onStart?.();
-    setTimeout(() => {
-      if (speechGeneration === genId) onEnd?.();
-    }, Math.max(1200, cleanText.length * 80));
-    return;
-  }
+function playWithHtmlAudioElement(
+  cleanText: string,
+  lang: 'bn-BD' | 'en-US' | 'ar-SA',
+  primaryUrl: string,
+  genId: number,
+  onStart?: () => void,
+  onEnd?: () => void
+) {
+  if (speechGeneration !== genId) return;
 
   const audio = getSharedVoiceAudio();
   if (!audio) {
@@ -481,16 +535,8 @@ export function speakText(text: string, options: SpeakOptions = {}) {
     return;
   }
 
-  const cacheKey = `${lang}::${cleanText}`;
-  const cachedBlobUrl = clientBlobUrlCache.get(cacheKey);
-  const primaryUrl = cachedBlobUrl
-    ? cachedBlobUrl
-    : serverTtsAvailable
-    ? buildServerTtsUrl(cleanText, lang)
-    : buildDirectGoogleTtsUrl(cleanText, lang);
-
   let settled = false;
-  let triedDirectGoogle = !serverTtsAvailable && !cachedBlobUrl;
+  let triedDirectGoogle = primaryUrl.startsWith('https://translate.google.com/');
 
   const finishOnce = () => {
     if (!settled) {
@@ -508,7 +554,6 @@ export function speakText(text: string, options: SpeakOptions = {}) {
   const handleFailure = () => {
     if (settled || speechGeneration !== genId) return;
 
-    // If /api/tts failed (e.g. static host or transient issue), try direct no-referrer female TTS next
     if (!triedDirectGoogle) {
       triedDirectGoogle = true;
       audio.src = buildDirectGoogleTtsUrl(cleanText, lang);
@@ -536,22 +581,93 @@ export function speakText(text: string, options: SpeakOptions = {}) {
   try {
     audio.src = primaryUrl;
     applyRate();
-    onStart?.();
-
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch((err: unknown) => {
-        // Ignore AbortError caused by rapid next tap; otherwise fallback cleanly
         const errName = (err as { name?: string })?.name;
         if (errName === 'AbortError' || speechGeneration !== genId) return;
         handleFailure();
       });
     }
-
-    if (!cachedBlobUrl && serverTtsAvailable) {
-      prefetchSpeech(cleanText, lang);
-    }
   } catch {
     handleFailure();
   }
+}
+
+export function speakText(text: string, options: SpeakOptions = {}) {
+  const { lang = 'bn-BD', onStart, onEnd } = options;
+  const cleanText = text.trim();
+
+  stopSpeech();
+  const genId = speechGeneration;
+
+  const ctx = getAudioContext();
+
+  if (!cleanText || isMutedGlobal) {
+    onStart?.();
+    setTimeout(() => {
+      if (speechGeneration === genId) onEnd?.();
+    }, Math.max(1200, cleanText.length * 80));
+    return;
+  }
+
+  const sameOriginUrl = resolveSameOriginAudioUrl(cleanText, lang);
+  onStart?.();
+
+  // Tier 1 & 2: Play same-origin static MP3 pack (./audio/*) or /api/tts via Web Audio API
+  // (bypasses window.fetch extensions, HTMLAudioElement range bugs, and iframe gesture limits)
+  if (sameOriginUrl && ctx) {
+    const playDecoded = (decoded: AudioBuffer) => {
+      if (speechGeneration !== genId || isMutedGlobal) return;
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = decoded;
+        source.playbackRate.value = 0.88;
+        source.connect(ctx.destination);
+        activeBufferSource = source;
+        source.onended = () => {
+          if (activeBufferSource === source) {
+            activeBufferSource = null;
+          }
+          if (speechGeneration === genId) {
+            onEnd?.();
+          }
+        };
+        source.start(0);
+      } catch {
+        playWithHtmlAudioElement(cleanText, lang, sameOriginUrl, genId, undefined, onEnd);
+      }
+    };
+
+    const cachedBuffer = decodedBufferCache.get(sameOriginUrl);
+    if (cachedBuffer && ctx.state === 'running') {
+      playDecoded(cachedBuffer);
+      return;
+    }
+
+    loadDecodedAudioBuffer(sameOriginUrl).then(async (decoded) => {
+      if (speechGeneration !== genId || isMutedGlobal) return;
+      if (decoded) {
+        if (ctx.state === 'suspended') {
+          await ctx.resume().catch(() => {});
+        }
+        if (speechGeneration !== genId || isMutedGlobal) return;
+        if (ctx.state === 'running') {
+          playDecoded(decoded);
+          return;
+        }
+      }
+
+      // Fallback if Web Audio decode failed or ctx wasn't running
+      const fallbackUrl =
+        STATIC_AUDIO_MANIFEST[`${lang}::${cleanText}`] ||
+        (serverTtsAvailable ? buildServerTtsUrl(cleanText, lang) : buildDirectGoogleTtsUrl(cleanText, lang));
+      playWithHtmlAudioElement(cleanText, lang, fallbackUrl, genId, undefined, onEnd);
+    });
+    return;
+  }
+
+  // Tier 3 & 4: Direct HTMLAudioElement -> Web Speech API
+  const url = sameOriginUrl || buildDirectGoogleTtsUrl(cleanText, lang);
+  playWithHtmlAudioElement(cleanText, lang, url, genId, undefined, onEnd);
 }
