@@ -13,6 +13,7 @@ import { EnglishWorld } from './components/EnglishWorld';
 import { FunMath } from './components/FunMath';
 import { MagicBoard } from './components/MagicBoard';
 import { ParentalModal } from './components/ParentalModal';
+import { OfflineIndicator, PWAInstallButton } from './components/PWAInstallButton';
 import { installRihanFaceFavicon, RihanFaceAvatar } from './components/RihanFaceAvatar';
 import { MascotMood, RihanMascot } from './components/RihanMascot';
 import { TabId } from './types';
@@ -270,8 +271,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Controls: Star Counter, Sound Toggle, Parental Lock */}
+          {/* Right Controls: Install App, Star Counter, Sound Toggle, Parental Lock */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <PWAInstallButton />
             <div
               className={`clay-badge-3d inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-amber-100 border-2 border-amber-300 text-amber-900 font-bold transition-transform ${
                 starPop ? 'scale-115' : 'scale-100'
@@ -428,6 +430,8 @@ export default function App() {
         onResetProgress={handleResetProgress}
         onWakeFromSleep={handleWakeFromSleep}
       />
+
+      <OfflineIndicator />
     </div>
   );
 }
